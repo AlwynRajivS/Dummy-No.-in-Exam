@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExamTag — Sticker Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<style>
+:root {
+  --bg: #f0f5ff;
+  --surface: #ffffff;
+  --surface-2: #eef2fc;
+  --border: #d1dcf5;
+  --navy: #1a3a6b;
+  --blue: #2563eb;
+  --blue-light: #dbeafe;
+  --teal: #0891b2;
+  --teal-light: #e0f2fe;
+  --green: #059669;
+  --green-light: #d1fae5;
+  --amber: #d97706;
+  --amber-light: #fef3c7;
+  --red: #dc2626;
+  --red-light: #fee2e2;
+  --text: #1e2d4e;
+  --text-2: #4a5c7e;
+  --text-3: #8898b3;
+  --shadow-sm: 0 1px 3px rgba(30,45,78,0.08);
+  --shadow: 0 4px 16px rgba(30,45,78,0.10), 0 2px 6px rgba(30,45,78,0.06);
+  --shadow-lg: 0 12px 40px rgba(30,45,78,0.14), 0 4px 16px rgba(30,45,78,0.08);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37,99,235,0.12) 0%, transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232563eb' fill-opacity='0.025'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+header {
+  background: var(--navy); color: #fff;
+  padding: 0 32px;
+  display: flex; align-items: center; gap: 16px;
+  height: 64px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 20px rgba(26,58,107,0.3);
+}
+.logo-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg,#3b82f6,#06b6d4);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Rajdhani',sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -1px;
+  flex-shrink: 0;
+}
+.logo-text { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px; letter-spacing:1px; }
+.logo-sub  { font-size:11px; opacity:0.55; letter-spacing:2px; text-transform:uppercase; margin-top:-2px; }
+header .spacer { flex:1; }
+.header-badge {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 5px 14px; font-size:12px; letter-spacing:0.5px;
+}
+
+main { max-width:1200px; margin:0 auto; padding:32px 24px 80px; display:flex; flex-direction:column; gap:28px; }
+
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+.card-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+.card-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.card-icon.blue  { background:var(--blue-light); }
+.card-icon.teal  { background:var(--teal-light); }
+.card-icon.green { background:var(--green-light); }
+.card-title    { font-family:'Rajdhani',sans-serif; font-weight:600; font-size:18px; letter-spacing:0.5px; }
+.card-subtitle { font-size:12px; color:var(--text-3); margin-top:1px; }
+.card-body { padding:24px; }
+
+#drop-zone {
+  border:2.5px dashed var(--border); border-radius:var(--radius);
+  padding:52px 24px; text-align:center; cursor:pointer;
+  transition:all 0.25s ease; background:var(--surface-2);
+}
+#drop-zone:hover,#drop-zone.dragover {
+  border-color:var(--blue); background:var(--blue-light);
+  transform:translateY(-2px); box-shadow:var(--shadow-lg);
+}
+#drop-zone .upload-icon {
+  width:72px; height:72px; background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  border-radius:20px; display:flex; align-items:center; justify-content:center;
+  font-size:32px; margin:0 auto 20px; box-shadow:0 4px 12px rgba(37,99,235,0.15);
+}
+#drop-zone h3 { font-size:17px; font-weight:600; margin-bottom:6px; }
+#drop-zone p  { font-size:13px; color:var(--text-3); margin-bottom:20px; }
+.upload-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--blue); color:white; border:none; border-radius:8px;
+  padding:10px 22px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; box-shadow:0 2px 8px rgba(37,99,235,0.3);
+}
+.upload-btn:hover { background:#1d4ed8; transform:translateY(-1px); }
+#file-input { display:none; }
+
+.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px 18px; box-shadow:var(--shadow-sm); transition:transform 0.2s; }
+.stat-card:hover { transform:translateY(-2px); }
+.stat-label { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.stat-value { font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; color:var(--navy); line-height:1; }
+.stat-sub   { font-size:11px; color:var(--text-3); margin-top:3px; }
+.stat-card.blue  .stat-value { color:var(--blue); }
+.stat-card.teal  .stat-value { color:var(--teal); }
+.stat-card.green .stat-value { color:var(--green); }
+
+.filters-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+.filter-group { display:flex; flex-direction:column; gap:5px; }
+.filter-group label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text-3); }
+.filter-group select,
+.filter-group input[type="text"] {
+  padding:9px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm);
+  font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text);
+  background:var(--surface); cursor:pointer; transition:border-color 0.2s; min-width:150px;
+}
+.filter-group select:focus,
+.filter-group input[type="text"]:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+.filter-actions { display:flex; gap:10px; align-items:flex-end; }
+
+.table-wrap { overflow-x:auto; border-radius:var(--radius-sm); border:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead { background:var(--navy); color:white; }
+thead th { padding:11px 14px; text-align:left; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12px; letter-spacing:1px; white-space:nowrap; }
+thead th:first-child,tbody td:first-child { width:44px; text-align:center; }
+tbody tr { border-bottom:1px solid var(--border); transition:background 0.15s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--blue-light); }
+tbody td { padding:10px 14px; color:var(--text); }
+input[type="checkbox"] { accent-color:var(--blue); width:15px; height:15px; cursor:pointer; }
+.badge { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge.green { background:var(--green-light); color:var(--green); }
+.badge.amber { background:var(--amber-light); color:var(--amber); }
+.mono { font-family:'JetBrains Mono',monospace; font-size:12px; }
+.hall-tag { background:var(--teal-light); color:var(--teal); padding:2px 8px; border-radius:5px; font-weight:600; font-size:12px; }
+
+.btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border-radius:var(--radius-sm); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; border:none; cursor:pointer; transition:all 0.2s; }
+.btn-primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); color:white; box-shadow:0 3px 12px rgba(37,99,235,0.35); }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(37,99,235,0.45); }
+.btn-secondary { background:var(--surface); color:var(--text); border:1.5px solid var(--border); }
+.btn-secondary:hover { background:var(--surface-2); border-color:var(--blue); color:var(--blue); }
+
+.layout-config {
+  display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;
+  background:var(--surface-2); border:1.5px solid var(--border);
+  border-radius:var(--radius-sm); padding:18px 22px; margin-bottom:22px;
+}
+.fg { display:flex; flex-direction:column; gap:6px; }
+.fg label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-3); }
+.num-input-wrap { display:flex; align-items:center; gap:0; }
+.num-spin {
+  width:30px; height:44px; border:1.5px solid var(--border); background:var(--surface-2);
+  cursor:pointer; font-size:18px; font-weight:700; color:var(--blue);
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.15s; user-select:none;
+}
+.num-spin:hover { background:var(--blue-light); }
+.num-spin.left  { border-radius:8px 0 0 8px; border-right:none; }
+.num-spin.right { border-radius:0 8px 8px 0; border-left:none; }
+.num-field {
+  width:64px; height:44px; border:1.5px solid var(--border);
+  font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700;
+  color:var(--navy); text-align:center; background:var(--surface);
+  outline:none; transition:border-color 0.2s;
+}
+.num-field:focus { border-color:var(--blue); }
+.layout-x { font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; color:var(--text-3); align-self:flex-end; padding-bottom:6px; }
+.layout-badge { background:var(--blue-light); color:var(--blue); border-radius:10px; padding:8px 16px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; align-self:flex-end; white-space:nowrap; border:1.5px solid #bfdbfe; }
+.layout-hint { flex:1; min-width:180px; align-self:flex-end; font-size:12px; color:var(--text-3); line-height:1.7; padding-bottom:4px; }
+
+.sticker-preview-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(188px,1fr)); gap:16px; }
+.sp-item { background:white; border:1.5px solid #c7d5f0; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(30,45,78,0.08); }
+.sp-accent { height:4px; background:linear-gradient(90deg,#2563eb,#0891b2); }
+.sp-body { padding:10px 12px 12px; }
+.sp-row1 { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+.sp-hall { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px; color:var(--navy); }
+.sp-seat { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px; color:var(--teal); }
+.sp-divider { height:1px; background:var(--border); margin-bottom:7px; }
+.sp-barcode { text-align:center; margin-bottom:7px; }
+.sp-barcode svg { width:100%; max-width:164px; height:36px; }
+.sp-cover { background:#e0f2fe; border-radius:6px; text-align:center; padding:5px 8px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; color:var(--teal); margin-bottom:7px; letter-spacing:0.5px; }
+.sp-reg { font-family:'JetBrains Mono',monospace; font-size:13.5px; font-weight:700; color:var(--navy); text-align:center; letter-spacing:0.3px; }
+
+.pagination { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.page-btn { width:34px; height:34px; border-radius:8px; border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+.page-btn:hover { border-color:var(--blue); color:var(--blue); }
+.page-btn.active { background:var(--blue); border-color:var(--blue); color:white; }
+.page-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.page-info { font-size:12px; color:var(--text-3); }
+
+.tab-row { display:flex; gap:4px; padding:0 24px; background:var(--surface-2); border-bottom:1px solid var(--border); }
+.tab-btn { padding:11px 18px; font-size:13px; font-weight:600; color:var(--text-3); border:none; background:none; cursor:pointer; border-bottom:2.5px solid transparent; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+.tab-btn:hover { color:var(--blue); }
+.tab-btn.active { color:var(--blue); border-bottom-color:var(--blue); }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+#progress-overlay { display:none; position:fixed; inset:0; background:rgba(15,30,60,0.7); backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; }
+#progress-overlay.show { display:flex; }
+.progress-modal { background:white; border-radius:20px; padding:40px 48px; text-align:center; min-width:320px; box-shadow:var(--shadow-lg); }
+.progress-spinner { width:56px; height:56px; border:4px solid var(--blue-light); border-top-color:var(--blue); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 20px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.progress-title { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--navy); margin-bottom:8px; }
+.progress-bar-wrap { background:var(--surface-2); border-radius:10px; height:8px; margin:16px 0 8px; overflow:hidden; }
+.progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--blue),var(--teal)); border-radius:10px; transition:width 0.3s ease; }
+.progress-text { font-size:13px; color:var(--text-3); }
+
+#toast-container { position:fixed; bottom:28px; right:24px; z-index:2000; display:flex; flex-direction:column; gap:10px; }
+.toast { display:flex; align-items:center; gap:12px; padding:13px 18px; border-radius:12px; background:var(--navy); color:white; font-size:13px; font-weight:500; box-shadow:var(--shadow-lg); animation:slideUp 0.35s ease; min-width:260px; }
+.toast.success { background:#064e3b; }
+.toast.error   { background:#7f1d1d; }
+@keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-3); }
+.empty-state .icon { font-size:48px; margin-bottom:16px; opacity:0.5; }
+.empty-state h3 { font-size:16px; font-weight:600; color:var(--text-2); margin-bottom:6px; }
+
+.section-fade { animation:fadeIn 0.4s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+@media (max-width:700px) {
+  main { padding:20px 14px 60px; }
+  .filters-row,.layout-config { flex-direction:column; }
+  .stats-row { grid-template-columns:repeat(2,1fr); }
+  .sticker-preview-grid { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">ET</div>
+  <div>
+    <div class="logo-text">EXAMTAG</div>
+    <div class="logo-sub">Exam Sticker Generator</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="header-badge" id="file-name-badge">No file loaded</div>
+</header>
+
+<main>
+
+  <!-- UPLOAD -->
+  <div class="card section-fade" id="upload-card">
+    <div class="card-header">
+      <div class="card-icon blue">📂</div>
+      <div>
+        <div class="card-title">Import Hall Seat Report</div>
+        <div class="card-subtitle">Upload the Excel (.xlsx) exported from the seating system</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="drop-zone">
+        <div class="upload-icon">📊</div>
+        <h3>Drop your Excel file here</h3>
+        <p>Supports <strong>Report_HallSeat_*.xlsx</strong> — columns: S.No · Dummy No · Reg No · Department · Hall · Position · Cover · Cover No · Course Code · Status</p>
+        <button class="upload-btn" onclick="document.getElementById('file-input').click()">📁 Browse File</button>
+        <input type="file" id="file-input" accept=".xlsx,.xls">
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="stats-section" style="display:none" class="section-fade">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Records</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-sub">students</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Halls</div>
+        <div class="stat-value" id="stat-halls">0</div>
+        <div class="stat-sub">exam venues</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Appeared</div>
+        <div class="stat-value" id="stat-appeared">0</div>
+        <div class="stat-sub">students</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-label">Departments</div>
+        <div class="stat-value" id="stat-depts">0</div>
+        <div class="stat-sub">branches</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Selected</div>
+        <div class="stat-value" id="stat-selected">0</div>
+        <div class="stat-sub">for stickers</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA CARD -->
+  <div class="card section-fade" id="data-card" style="display:none">
+    <div class="card-header">
+      <div class="card-icon teal">🗂️</div>
+      <div>
+        <div class="card-title">Student Records</div>
+        <div class="card-subtitle">Filter, select and preview stickers</div>
+      </div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('table')">📋 Table View</button>
+      <button class="tab-btn"        onclick="switchTab('preview')">🏷️ Sticker Preview</button>
+    </div>
+
+    <div class="card-body" style="padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <div class="filters-row">
+        <div class="filter-group">
+          <label>Hall</label>
+          <select id="filter-hall" onchange="applyFilters()"><option value="">All Halls</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Department</label>
+          <select id="filter-dept" onchange="applyFilters()"><option value="">All Departments</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="filter-status" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="appeared">✅ Appeared</option>
+            <option value="absent">❌ Absent</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Search</label>
+          <input type="text" id="filter-search" placeholder="Reg No / Dummy No…" oninput="applyFilters()">
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-secondary" onclick="clearFilters()">↺ Reset</button>
+          <button class="btn btn-secondary" onclick="selectAll()">☑ Select Filtered</button>
+          <button class="btn btn-secondary" onclick="clearSelection()">☐ Clear All</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-table" class="tab-panel active">
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="select-all-cb" onchange="toggleAllVisible(this)"></th>
+                <th>S.No</th><th>Hall</th><th>Seat</th><th>Dummy No.</th>
+                <th>Reg No.</th><th>Dept</th><th>Cover No.</th><th>Course</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-top:1px solid var(--border);">
+          <div class="page-info" id="page-info"></div>
+          <div class="pagination" id="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-preview" class="tab-panel">
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Showing first 30 records. Barcode encodes Dummy No. (number hidden — bars only). Cover No. and Reg No. shown below.</p>
+        <div id="preview-grid" class="sticker-preview-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GENERATE CARD -->
+  <div class="card section-fade" id="generate-card" style="display:none">
+    <div class="card-header">
+      <div class="card-icon green">🖨️</div>
+      <div>
+        <div class="card-title">Generate Sticker PDF</div>
+        <div class="card-subtitle">Set rows × columns per page, then download</div>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <div class="layout-config">
+        <div class="fg">
+          <label>Columns (across)</label>
+          <div class="num-input-wrap">
+            <div class="num-spin left" onclick="nudge('cfg-cols',-1)">−</div>
+            <input class="num-field" type="number" id="cfg-cols" value="3" min="1" max="10" oninput="updateLayoutBadge()">
+            <div class="num-spin right" onclick="nudge('cfg-cols',+1)">+</div>
+          </div>
+        </div>
+
+        <div class="layout-x">×</div>
+
+        <div class="fg">
+          <label>Rows (down)</label>
+          <div class="num-input-wrap">
+            <div class="num-spin left" onclick="nudge('cfg-rows',-1)">−</div>
+            <input class="num-field" type="number" id="cfg-rows" value="7" min="1" max="20" oninput="updateLayoutBadge()">
+            <div class="num-spin right" onclick="nudge('cfg-rows',+1)">+</div>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Paper Size</label>
+          <select id="paper-size" style="height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--surface);cursor:pointer;min-width:120px;" onchange="updateLayoutBadge()">
+            <option value="a4" selected>A4</option>
+            <option value="letter">Letter</option>
+            <option value="a3">A3</option>
+          </select>
+        </div>
+
+        <div class="layout-badge" id="layout-badge">3 × 7 = 21 / page</div>
+        <div class="layout-hint" id="layout-hint">Adjust columns and rows to fit your sticker sheet. Spacing is auto-calculated.</div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="generatePDF()">⬇️ Download Sticker PDF</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📂 Load Different File</button>
+        <span id="generate-info" style="font-size:13px;color:var(--text-3);"></span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="progress-overlay">
+  <div class="progress-modal">
+    <div class="progress-spinner"></div>
+    <div class="progress-title" id="prog-title">Generating PDF…</div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+    <div class="progress-text" id="prog-text">Preparing stickers…</div>
+  </div>
+</div>
+<div id="toast-container"></div>
+
+<script>
+/* ──────────────── STATE ──────────────── */
+let allData      = [];
+let filteredData = [];
+let selectedRows = new Set();
+let currentPage  = 1;
+const PAGE_SIZE  = 20;
+
+/* ──────────────── UPLOAD ──────────────── */
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+function handleFile(file) {
+  if (!file.name.match(/\.xlsx?$/i)) { toast('Please upload an .xlsx file','error'); return; }
+  document.getElementById('file-name-badge').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, { type:'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      processData(rows);
+      toast(`✅ Loaded ${rows.length} records from ${file.name}`, 'success');
+    } catch(err) { toast('Failed to read file: ' + err.message, 'error'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processData(rows) {
+  allData = rows.map((r,i) => ({
+    sno:        r['S.No.']      || r['S.No']    || (i+1),
+    dummy:      String(r['Dummy No.']  || r['Dummy No'] || '').trim(),
+    regNo:      String(r['Reg No.']    || r['Reg No']   || '').trim(),
+    dept:       String(r['Department'] || r['Dept']     || '').trim(),
+    hall:       String(r['Hall']       || '').trim(),
+    position:   String(r['Position']   || r['Seat']     || '').trim(),
+    cover:      String(r['Cover']      || '').trim(),
+    coverNo:    String(r['Cover No.']  || r['Cover No'] || '').trim(),
+    courseCode: String(r['Course Code']|| '').trim(),
+    status:     String(r['Status']     || '').trim(),
+  })).filter(r => r.dummy && r.regNo);
+
+  selectedRows = new Set(allData.map((_,i)=>i));
+  buildFilters();
+  applyFilters();
+
+  const halls    = new Set(allData.map(r=>r.hall));
+  const depts    = new Set(allData.map(r=>r.dept));
+  const appeared = allData.filter(r=>r.status.includes('Appeared')).length;
+  document.getElementById('stat-total').textContent    = allData.length;
+  document.getElementById('stat-halls').textContent    = halls.size;
+  document.getElementById('stat-appeared').textContent = appeared;
+  document.getElementById('stat-depts').textContent    = depts.size;
+  ['stats-section','data-card','generate-card'].forEach(id => document.getElementById(id).style.display='');
+  updateSelectedCount();
+  updateLayoutBadge();
+}
+
+/* ──────────────── FILTERS ──────────────── */
+function buildFilters() {
+  const halls = [...new Set(allData.map(r=>r.hall))].sort();
+  const depts = [...new Set(allData.map(r=>r.dept))].sort();
+  document.getElementById('filter-hall').innerHTML =
+    '<option value="">All Halls</option>' + halls.map(h=>`<option value="${h}">${h}</option>`).join('');
+  document.getElementById('filter-dept').innerHTML =
+    '<option value="">All Departments</option>' + depts.map(d=>`<option value="${d}">${d}</option>`).join('');
+}
+
+function applyFilters() {
+  const hall   = document.getElementById('filter-hall').value;
+  const dept   = document.getElementById('filter-dept').value;
+  const status = document.getElementById('filter-status').value;
+  const search = document.getElementById('filter-search').value.toLowerCase().trim();
+  filteredData = allData.map((r,i)=>({...r,_idx:i})).filter(r => {
+    if (hall   && r.hall !== hall) return false;
+    if (dept   && r.dept !== dept) return false;
+    if (status==='appeared' && !r.status.includes('Appeared')) return false;
+    if (status==='absent'   &&  r.status.includes('Appeared')) return false;
+    if (search && !r.regNo.toLowerCase().includes(search) &&
+                  !r.dummy.toLowerCase().includes(search)  &&
+                  !r.dept.toLowerCase().includes(search))   return false;
+    return true;
+  });
+  currentPage = 1;
+  renderTable();
+  renderPreview();
+  updateGenerateInfo();
+}
+
+function clearFilters() {
+  ['filter-hall','filter-dept','filter-status'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('filter-search').value='';
+  applyFilters();
+}
+
+/* ──────────────── TABLE ──────────────── */
+function renderTable() {
+  const tbody  = document.getElementById('table-body');
+  const total  = filteredData.length;
+  const tpages = Math.max(1, Math.ceil(total/PAGE_SIZE));
+  if (currentPage>tpages) currentPage=tpages;
+  const start    = (currentPage-1)*PAGE_SIZE;
+  const pageData = filteredData.slice(start, start+PAGE_SIZE);
+
+  tbody.innerHTML = pageData.map(r => {
+    const chk = selectedRows.has(r._idx) ? 'checked' : '';
+    const app = r.status.includes('Appeared');
+    return `<tr>
+      <td><input type="checkbox" ${chk} onchange="toggleRow(${r._idx},this)"></td>
+      <td>${r.sno}</td>
+      <td><span class="hall-tag">${r.hall}</span></td>
+      <td><strong>${r.position}</strong></td>
+      <td class="mono">${r.dummy}</td>
+      <td class="mono">${r.regNo}</td>
+      <td>${r.dept}</td>
+      <td class="mono">${r.coverNo}</td>
+      <td>${r.courseCode}</td>
+      <td>${app?'<span class="badge green">✅ Appeared</span>':'<span class="badge amber">❌ Absent</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('page-info').textContent =
+    `Showing ${start+1}–${Math.min(start+PAGE_SIZE,total)} of ${total} records`;
+  renderPagination(tpages);
+
+  const vis   = pageData.map(r=>r._idx);
+  const allCb = document.getElementById('select-all-cb');
+  const allCk = vis.length>0 && vis.every(i=>selectedRows.has(i));
+  allCb.checked       = allCk;
+  allCb.indeterminate = !allCk && vis.some(i=>selectedRows.has(i));
+}
+
+function renderPagination(tp) {
+  let h = `<button class="page-btn" onclick="gotoPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+  for (let p=Math.max(1,currentPage-2); p<=Math.min(tp,currentPage+2); p++)
+    h += `<button class="page-btn ${p===currentPage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+  h += `<button class="page-btn" onclick="gotoPage(${currentPage+1})" ${currentPage===tp?'disabled':''}>›</button>`;
+  document.getElementById('pagination').innerHTML = h;
+}
+
+function gotoPage(p) {
+  const tp = Math.max(1,Math.ceil(filteredData.length/PAGE_SIZE));
+  if (p<1||p>tp) return;
+  currentPage=p; renderTable();
+}
+
+/* ──────────────── SELECTION ──────────────── */
+function toggleRow(idx,cb) { if(cb.checked) selectedRows.add(idx); else selectedRows.delete(idx); updateSelectedCount(); syncAllCb(); updateGenerateInfo(); }
+function toggleAllVisible(cb) {
+  const start=(currentPage-1)*PAGE_SIZE;
+  filteredData.slice(start,start+PAGE_SIZE).map(r=>r._idx).forEach(i=>{ if(cb.checked) selectedRows.add(i); else selectedRows.delete(i); });
+  renderTable(); updateSelectedCount(); updateGenerateInfo();
+}
+function selectAll()      { filteredData.forEach(r=>selectedRows.add(r._idx));    renderTable(); updateSelectedCount(); updateGenerateInfo(); }
+function clearSelection() { filteredData.forEach(r=>selectedRows.delete(r._idx)); renderTable(); updateSelectedCount(); updateGenerateInfo(); }
+function syncAllCb() {
+  const start=(currentPage-1)*PAGE_SIZE;
+  const vis=filteredData.slice(start,start+PAGE_SIZE).map(r=>r._idx);
+  const cb=document.getElementById('select-all-cb');
+  const ok=vis.every(i=>selectedRows.has(i));
+  cb.checked=ok; cb.indeterminate=!ok&&vis.some(i=>selectedRows.has(i));
+}
+function updateSelectedCount() { document.getElementById('stat-selected').textContent=selectedRows.size; }
+function updateGenerateInfo() {
+  const n=selectedRows.size;
+  document.getElementById('generate-info').textContent=n>0
+    ? `${n} sticker${n>1?'s':''} ready to export`
+    : 'No stickers selected — use checkboxes or "Select Filtered"';
+}
+
+/* ──────────────── TABS ──────────────── */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['table','preview'][i]===tab));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab==='preview') renderPreview();
+}
+
+/* ──────────────── STICKER PREVIEW ──────────────── */
+function renderPreview() {
+  const grid = document.getElementById('preview-grid');
+  const data = filteredData.slice(0,30);
+  if (!data.length) { grid.innerHTML='<div class="empty-state"><div class="icon">🏷️</div><h3>No records to preview</h3></div>'; return; }
+
+  grid.innerHTML = data.map(r=>`
+    <div class="sp-item">
+      <div class="sp-accent"></div>
+      <div class="sp-body">
+        <div class="sp-row1">
+          <span class="sp-hall">HN: ${r.hall}</span>
+          <span class="sp-seat">SN: ${r.position}</span>
+        </div>
+        <div class="sp-divider"></div>
+        <div class="sp-barcode"><svg id="pvbc-${r._idx}"></svg></div>
+        <div class="sp-cover">${r.coverNo}</div>
+        <div class="sp-reg">${r.regNo}</div>
+      </div>
+    </div>`).join('');
+
+  setTimeout(()=>{
+    data.forEach(r=>{
+      try {
+        JsBarcode(`#pvbc-${r._idx}`, r.dummy, {
+          format:'CODE128', width:1.5, height:32,
+          displayValue: false,
+          margin:2, lineColor:'#1e2d4e', background:'transparent',
+        });
+      } catch(e){}
+    });
+  }, 50);
+}
+
+/* ──────────────── LAYOUT BADGE ──────────────── */
+function nudge(id, delta) {
+  const el  = document.getElementById(id);
+  const min = parseInt(el.min)||1;
+  const max = parseInt(el.max)||20;
+  el.value  = Math.min(max, Math.max(min, (parseInt(el.value)||0)+delta));
+  updateLayoutBadge();
+}
+function updateLayoutBadge() {
+  const cols = Math.max(1, parseInt(document.getElementById('cfg-cols').value)||3);
+  const rows = Math.max(1, parseInt(document.getElementById('cfg-rows').value)||7);
+  document.getElementById('layout-badge').textContent = `${cols} × ${rows} = ${cols*rows} / page`;
+  document.getElementById('layout-hint').innerHTML =
+    `<strong>${cols*rows} stickers</strong> per page at ${cols} cols × ${rows} rows.<br>Margins & gaps are auto-calculated.`;
+}
+
+/* ──────────────── PDF GENERATION ──────────────── */
+async function generatePDF() {
+  const dataToGen = allData.map((r,i)=>({...r,_idx:i})).filter(r=>selectedRows.has(r._idx));
+  if (!dataToGen.length) { toast('No rows selected — please select at least one student.','error'); return; }
+
+  const cols      = Math.max(1, parseInt(document.getElementById('cfg-cols').value)||3);
+  const rowsPerPg = Math.max(1, parseInt(document.getElementById('cfg-rows').value)||7);
+  const paperSize = document.getElementById('paper-size').value;
+
+  showProgress(true,'Generating PDF…',0,`Preparing ${dataToGen.length} stickers…`);
+  await tick();
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc  = new jsPDF({ orientation:'portrait', unit:'mm', format:paperSize });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    const mX = 8, mY = 8;   // page margins
+    const gX = 4, gY = 5;   // gaps between stickers
+
+    const sW = (pageW - mX*2 - gX*(cols-1))      / cols;
+    const sH = (pageH - mY*2 - gY*(rowsPerPg-1)) / rowsPerPg;
+
+    let col=0, row=0, firstPage=true;
+
+    for (let i=0; i<dataToGen.length; i++) {
+      const r = dataToGen[i];
+      updateProgress(Math.round((i/dataToGen.length)*100), `Sticker ${i+1}/${dataToGen.length}: ${r.regNo}`);
+
+      if (!firstPage && col===0 && row===0) doc.addPage();
+      firstPage = false;
+
+      drawSticker(doc, r, mX + col*(sW+gX), mY + row*(sH+gY), sW, sH);
+
+      col++;
+      if (col>=cols) { col=0; row++; if (row>=rowsPerPg) { col=0; row=0; } }
+      if (i%8===0) await tick();
+    }
+
+    updateProgress(100,'Saving PDF…');
+    await tick(200);
+    doc.save(`Exam_Stickers_${new Date().toISOString().slice(0,10)}.pdf`);
+    showProgress(false);
+    toast(`✅ PDF with ${dataToGen.length} stickers saved!`,'success');
+  } catch(err) {
+    showProgress(false);
+    toast('PDF error: '+err.message,'error');
+    console.error(err);
+  }
+}
+
+/* ──────────────────────────────────────────────────────
+   drawSticker  —  ALL content fully inside the box
+   Layout (top → bottom, inside padding of 1.5mm each side):
+     topAccent  2.0mm   blue stripe
+     pad        1.2mm   inner top padding
+     hdrH       12%     HN / SN row
+     sep        0.8mm   divider line
+     bcH        34%     barcode (bars only)
+     cvH        17%     cover no. pill
+     gap        1.0mm
+     regH       17%     reg no. (larger)
+     botPad     rest    ~1–2 mm bottom breathing room
+   ──────────────────────────────────────────────────── */
+function drawSticker(doc, r, x, y, w, h) {
+
+  /* ── outer rounded box ── */
+  doc.setDrawColor(190, 210, 245);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+
+  /* ── top accent stripe ── */
+  const accentH = 2.0;
+  doc.setFillColor(37, 99, 235);
+  doc.rect(x, y, w, accentH, 'F');
+
+  /* ── usable interior ── */
+  const padX   = 2.5;                        // left/right inner margin
+  const padTop = 1.2;                        // gap below accent stripe
+  const padBot = 1.5;                        // gap above bottom border
+
+  const innerY = y + accentH + padTop;       // top of content area
+  const innerH = h - accentH - padTop - padBot; // height of content area
+
+  /* ── proportional row heights within innerH ── */
+  const hdrFrac = 0.13;   // Hall / Seat number row
+  const bcFrac  = 0.34;   // barcode
+  const cvFrac  = 0.28;   // cover no.
+  const regFrac = 0.24;   // reg no.
+  // remaining ~0.05 → bottom padding (already in padBot)
+
+  const hdrH = innerH * hdrFrac;
+  const bcH  = innerH * bcFrac;
+  const cvH  = innerH * cvFrac;
+  const regH = innerH * regFrac;
+
+  const sepH = 0.6;   // divider line height (visual, 0mm actual)
+  const gap  = (innerH - hdrH - bcH - cvH - regH - sepH) / 3;  // space between rows
+
+  /* row Y-starts */
+  const yHdr = innerY;
+  const ySep = yHdr + hdrH;
+  const yBC  = ySep + sepH + gap * 0.5;
+  const yCV  = yBC  + bcH  + gap;
+  const yReg = yCV  + cvH  + gap;
+
+  /* ── Row 1: Hall & Seat ── */
+  const fs1 = clamp(w * 0.085, 5.5, 9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(fs1);
+  doc.setTextColor(26, 58, 107);
+  doc.text('HN: ' + r.hall,     x + padX,       yHdr + hdrH * 0.78);
+  doc.setTextColor(8, 145, 178);
+  doc.text('SN: ' + r.position, x + w - padX,   yHdr + hdrH * 0.78, { align: 'right' });
+
+  /* ── Separator line ── */
+  doc.setDrawColor(210, 222, 245);
+  doc.setLineWidth(0.2);
+  doc.line(x + padX, ySep, x + w - padX, ySep);
+
+  /* ── Row 2: Barcode (bars only, no text) ── */
+  try {
+    const cv = document.createElement('canvas');
+    JsBarcode(cv, r.dummy, {
+      format: 'CODE128',
+      width: 2.2,
+      height: 70,
+      displayValue: false,   /* ← Dummy No. hidden; bars only */
+      margin: 3,
+      lineColor: '#1a3a6b',
+      background: '#ffffff',
+    });
+    doc.addImage(cv.toDataURL('image/png'), 'PNG',
+      x + padX, yBC, w - padX * 2, bcH);
+  } catch(e) {
+    doc.setFillColor(220, 228, 245);
+    doc.rect(x + padX, yBC, w - padX * 2, bcH, 'F');
+  }
+
+  /* ── Row 3: Cover No. pill ── */
+  doc.setFillColor(224, 242, 254);
+  doc.roundedRect(x + padX, yCV, w - padX * 2, cvH, 1.2, 1.2, 'F');
+  const fsCV = clamp(w * 0.14, 10, 18);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(fsCV);
+  doc.setTextColor(8, 145, 178);
+  doc.text(r.coverNo, x + w / 2, yCV + cvH * 0.70, { align: 'center' });
+
+  /* ── Row 4: Reg No. — INSIDE the box, larger font ── */
+  const fsReg = clamp(w * 0.115, 8, 15);
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(fsReg);
+  doc.setTextColor(26, 58, 107);
+
+  /* auto-shrink if reg no. text is wider than available space */
+  const availW = w - padX * 2;
+  const tw = doc.getStringUnitWidth(r.regNo) * fsReg / doc.internal.scaleFactor;
+  const actualFs = tw > availW ? fsReg * (availW / tw) : fsReg;
+  doc.setFontSize(actualFs);
+  doc.text(r.regNo, x + w / 2, yReg + regH * 0.72, { align: 'center' });
+
+  /* ── Bottom accent line (inside box) ── */
+  doc.setDrawColor(37, 99, 235);
+  doc.setLineWidth(0.4);
+  doc.line(x + padX + 2, y + h - padBot * 0.6,
+           x + w - padX - 2, y + h - padBot * 0.6);
+}
+
+/* ──────────────── UTILITIES ──────────────── */
+const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
+const tick  = (ms=0) => new Promise(r=>setTimeout(r,ms));
+
+function showProgress(show,title='',pct=0,text='') {
+  document.getElementById('progress-overlay').classList.toggle('show',show);
+  if (show) {
+    document.getElementById('prog-title').textContent = title;
+    document.getElementById('prog-bar').style.width   = pct+'%';
+    document.getElementById('prog-text').textContent  = text;
+  }
+}
+function updateProgress(pct,text) {
+  document.getElementById('prog-bar').style.width  = pct+'%';
+  document.getElementById('prog-text').textContent = text;
+}
+function toast(msg,type='') {
+  const tc=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className='toast '+type;
+  t.innerHTML=`<span>${{success:'✅',error:'❌'}[type]||'ℹ️'}</span><span>${msg}</span>`;
+  tc.appendChild(t);
+  setTimeout(()=>t.remove(),4500);
+}
+</script>
+</body>
+</html>
